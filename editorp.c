@@ -38,23 +38,33 @@ editorTAD Editor (){
 void CarregaTexto (editorTAD e, char *nome) {
 	/*Caracteres de iteração*/
 	char c, *k;
+	printf("vai carregar\n");
 	FILE *arquivo = fopen (nome, "r");
+	printf("carregou\n");
 	if (arquivo != NULL){
-		c = getc(arquivo);
-		while(c != EOF){
-			if (e->cursor < e->proximo)
+		printf("Não nulo\n");
+		c = getc(arquivo);printf("%x\n ", (unsigned int) c);
+		printf("first char\n");
+		while(c != EOF && c != 3 && c != 4){
+			printf("access [%ld] ", e->cursor-e->inicio);
+			printf("[%ld] ", e->fim-e->cursor);
+			
+			if (e->cursor < e->proximo){
 				/*Grava o caractere lido e avança o cursor*/
-				*(e->cursor++) = c;
+				*(e->cursor++) = c;printf("%2x(%c) \n", (unsigned int) c, c);
+				printf("[%ld] ", e->proximo-e->inicio);
+			}
 			else{
 				printf("Editor cheio!\n"); break;}
 			c = getc(arquivo);
+			printf("[%ld] ", e->proximo-e->cursor);
 		}
 		/*Deslocamento dos caracteres para o fim do vetor*/
-		for(k = e->inicio; k < e->cursor; k++){
+		for(k = e->cursor - 1; k >= e->inicio; k--){
 			*(k + (e->fim - e->cursor) + 1) = *k;
 		}
 		/*Deslocamento do ponteiro 'proximo' para o primeiro caractere deslocado*/
-		e->proximo = e->inicio + (e->fim - e->cursor);
+		e->proximo = e->inicio + (e->fim - e->cursor) + 1;
 		/*Cursor volta ao inicio*/
 		e->cursor = e->inicio;
 	} else printf("Arquivo vazio!\n");
@@ -144,7 +154,9 @@ int main (void)
 
   printf ("Digite um nome de arquivo para carregar ou criar: ");
   fgets (nome, 256, stdin);      nome[strlen (nome) - 1] = '\0';
+  printf("a instanciar editor\n");
   editor = Editor ();
+  printf("instanciou editor\n");
   CarregaTexto (editor, nome);
 
   printf (":");
