@@ -16,8 +16,19 @@ struct letra_struct{
 };
 
 struct editorTCD{
-	letra inicio, cursor, marcador, anterior, fim, copia_comeco, copia_fim;
-	letra marcador_n, marcador_a;
+	/*Limites da lista ligada. Ambos são apenas 'headers': não contém texto*/
+	letra inicio, fim;
+	/*Letra com o caractere '^'. Fica inserido entre os caracteres do texto*/
+	letra cursor;
+	/*Aponta para o próximo caractere do cursor (cursor->next) quando 'm' é pressionado*/
+	letra marcador;
+	/*Aponta para a letra imediatamente antes do cursor*/
+	letra anterior;
+	/*Apontam para os limites do texto (inclusive) das letras a serem copiadas
+	OBS.: por algum motivo desconhecido, inicio->next aponta para copia->comeco.
+	Isso atrapalha a operação de cópia.
+	Não consegui identificar porque isso ocorre*/
+	copia_comeco, copia_fim;
 };
 
 editorTAD Editor (){
@@ -29,9 +40,11 @@ editorTAD Editor (){
 	editor->anterior = editor->inicio;
 	editor->marcador = (letra) -1;
 	editor->cursor->next = editor->fim;
+	editor->copia_comeco = editor->copia_fim = NULL;
 	return editor;
 }
 
+/*Criação de um novo objeto do tipo 'letra'*/
 letra novaLetra(char c){
 	letra l = (letra) malloc (sizeof ( (letra) NULL));
 	l->v = c;
@@ -39,6 +52,7 @@ letra novaLetra(char c){
 	return l;
 }
 
+/*Detecta a letra anterior ao argumento. Caso a letra não tenha antecessor, retorna NULL*/
 letra lookPrevious(editorTAD editor, letra l){
 	letra k = editor->inicio;
 	while (k->next != l && k->next != NULL)
@@ -50,33 +64,29 @@ letra lookPrevious(editorTAD editor, letra l){
 }
 
 void CarregaTexto (editorTAD e, char *nome) {
-	/*Caracteres de iteração*/
-	char c, *k;
+	/*Letra iterativa*/
 	letra l;
 	FILE *arquivo = fopen (nome, "r");
-	if (arquivo != NULL){
+	if (arquivo != NULL){ /*Arquivo não-vazio*/
 		c = getc(arquivo);
 		while(c != EOF && c != 3 && c != 4){
-			//printf("%x (%c)\n", (unsigned int) c, c);
-			/*Grava o caractere lido*/
+			/*Adiciona o caractere à lista ligada*/
 			l = novaLetra(c);
 			l->next = (e->cursor);
 			(e->anterior)->next = l;
 			e->anterior = l;
-			//printf("%2x(%c) \n", (unsigned int) c, c);
 			c = getc(arquivo);
 		}
-	} else printf("Arquivo vazio!\n");
+	} else { /*Arquivo vazio*/
+		arquivo = fopen (nome, "w");
+	}
 	fclose(arquivo);
 }
 
 void ExibeEditor(editorTAD e){
 	letra l;
-	/*Exibe a parte antes do cursor*/
 	for(l = e->inicio->next; l->next != NULL; l = l->next)
 		printf("%c", l->v);
-	//if (l = e->cursor)
-		//printf("%c", l->v);
 }
 
 void InsereCaractere (editorTAD editor, char caractere) {
@@ -105,12 +115,14 @@ void RemoveCaractereAnterior (editorTAD editor) {
 
 void RetrocedeCursor (editorTAD editor) {
 	letra Anterior = lookPrevious(editor, editor->anterior);
+	printf("%ld %ld \n", (long)editor->inicio->next, (long)editor->copia_comeco);
 	if (editor->anterior != editor->inicio){
 		editor->anterior->next = editor->cursor->next;
 		editor->cursor->next = editor->anterior;
 		Anterior->next = editor->cursor;
 		editor->anterior = Anterior;
 	}
+	printf("%ld %ld \n", (long)editor->inicio->next, (long)editor->copia_comeco);
 }
 
 void AvancaCursor (editorTAD editor) {
@@ -124,42 +136,39 @@ void AvancaCursor (editorTAD editor) {
 }
 
 void MarcaPosicao (editorTAD editor) {
-	editor->marcador = editor->cursor;
-	editor->marcador_a = editor->anterior;
-	editor->marcador_n = editor->cursor->next;
+	printf("%ld %ld \n", (long)editor->inicio->next, (long)editor->copia_comeco);
+	if (editor->marcador == (letra) -1)
+		editor->marcador = editor->cursor->next;
+	printf("%ld %ld \n", (long)editor->inicio->next, (long)editor->copia_comeco);
 }
 
 void CopiaTexto (editorTAD editor) {
-	letra i = editor->marcador_n;
-	letra l, primeiro, segundo;
-	while(i != editor->cursor && i != editor->fim)
-		i = i->next;
-	if  (i == editor->cursor){	/*marcador antes de cursor*/
-		primeiro = editor->marcador_n;
-		segundo = editor->cursor;
-	} else{						/*cursor antes de marcador*/
-		primeiro = editor->cursor->next;
-		segundo = editor->marcador_n;
+	letra i, l, primeiro_i, segundo_e;
+	for(i = editor->inicio; ; i = i->next)
+		if (i == NULL || i == editor->marcador || i == editor->cursor)
+			break;
+	/*printf("%ld %ld \n", (long)editor->inicio->next, (long)editor->copia_comeco);*/
+	/*A partir desse bloco, o editor->inicio->next é alterado*/
+	if (i == editor->cursor){	/*Cursor antes de marcador*/
+		editor->copia_comeco = editor->cursor->next;
+		editor->copia_fim = editor->marcador;
+	} else{						/*Marcador antes de cursor*/
+		editor->copia_comeco = editor->marcador;
+		editor->copia_fim = editor->cursor;
 	}
-	l = novaLetra(primeiro->v);
-	editor->copia_comeco = l;
-	editor->copia_fim = editor->copia_comeco;
-	for (i = primeiro->next; i != segundo; i = i->next){
-		l = novaLetra(i->v);
-		editor->copia_fim->next = l;
-		editor->copia_fim = l;
-	}
-	for(i = editor->copia_comeco; i != editor->copia_fim; i = i->next)
-		printf("%c", i->v);
-	printf("\n");
 }
 
 void InsereTexto (editorTAD editor) {
-	editor->anterior->next = editor->copia_comeco;
-	editor->copia_fim->next = editor->cursor;
-	editor->anterior = editor->copia_fim;
+	letra i;
+	for (i = editor->copia_comeco; i != editor->copia_fim; i = i->next)
+		InsereCaractere(editor, i->v);
 }
 
 void SalvaTexto (editorTAD editor, char *nome) {
-	
+	letra i;
+	FILE *arquivo = fopen (nome, "w");
+	for (i = editor->inicio; i != editor->fim; i = i->next)
+		if (i != editor->cursor)
+			putc(i->v, arquivo);
+	fclose(arquivo);	
 }

@@ -6,7 +6,7 @@
 
 #define MAX_LINHA 10010
 struct editorTCD{
-	/*Vetor sobre o qual o texto será manipulado*/
+	/*Vetor sobre o qual o texto será manipulado, vetor auxiliar (cópia)*/
 	char linha[MAX_LINHA], aux[MAX_LINHA];
 	/*Apontam para o caractere inicial e final*/
 	char *inicio, *fim;
@@ -16,12 +16,15 @@ struct editorTCD{
 	char *proximo;
 	/*Caractere que corresponte ao cursor: '^'*/
 	char cs; 
-	
 	char *marcador;
 	/*Marca uma posição após o último caractere copiado*/
 	char *copia;
 };
 
+
+/*Implementação: há duas pilhas: a primeira, cuja base está no início do vetor e o topo cresce no sentido positivo (pos[base] < pos[topo]), que contém os caracteres antes do cursor.
+A segunda, de base no fim do vetor e cujo topo cresce no sentido negativo (pos[topo] < pos[base]).
+Em vez de usar o formato vec[topo], usei diretamente um ponteiro (char *) para essas localizações.*/
 editorTAD Editor (){
 	editorTAD editor = (editorTAD) malloc(sizeof((editorTAD) NULL));
 	editor -> inicio = editor -> linha;
@@ -37,38 +40,20 @@ editorTAD Editor (){
 }
 
 void CarregaTexto (editorTAD e, char *nome) {
-	/*Caracteres de iteração*/
-	char c, *k;
-	printf("vai carregar\n");
-	FILE *arquivo = fopen (nome, "r");
-	printf("carregou\n");
+	int t;
+	FILE *arquivo;
 	if (arquivo != NULL){
-		printf("Não nulo\n");
-		c = getc(arquivo);printf("%x\n ", (unsigned int) c);
-		printf("first char\n");
-		while(c != EOF && c != 3 && c != 4){
-			printf("access [%ld] ", e->cursor-e->inicio);
-			printf("[%ld] ", e->fim-e->cursor);
-			
-			if (e->cursor < e->proximo){
-				/*Grava o caractere lido e avança o cursor*/
-				*(e->cursor++) = c;printf("%2x(%c) \n", (unsigned int) c, c);
-				printf("[%ld] ", e->proximo-e->inicio);
-			}
-			else{
-				printf("Editor cheio!\n"); break;}
-			c = getc(arquivo);
-			printf("[%ld] ", e->proximo-e->cursor);
+		arquivo = fopen (nome, "r");
+		fseek(arquivo, 0, SEEK_END);
+		t = ftell(arquivo);
+		fseek(arquivo, 0, SEEK_SET);
+		/* Os caracteres serão lidos de forma que o último deles esteja na última posição do vetor, pois esses caracteres estarão na pilha depois do cursor (vide linha 26).*/
+		e->proximo = e->linha + MAX_LINHA - 1 - t;
+		fread(e->proximo, t, 1, arquivo);
+		
+	} else { /*Caso de arquivo nulo/vazio*/
+		arquivo = fopen (nome, "w");
 		}
-		/*Deslocamento dos caracteres para o fim do vetor*/
-		for(k = e->cursor - 1; k >= e->inicio; k--){
-			*(k + (e->fim - e->cursor) + 1) = *k;
-		}
-		/*Deslocamento do ponteiro 'proximo' para o primeiro caractere deslocado*/
-		e->proximo = e->inicio + (e->fim - e->cursor) + 1;
-		/*Cursor volta ao inicio*/
-		e->cursor = e->inicio;
-	} else printf("Arquivo vazio!\n");
 	fclose(arquivo);
 }
 
@@ -82,7 +67,6 @@ void ExibeEditor(editorTAD e){
 	/*Exibe a parte depois do cursor*/
 	for(c = e->proximo; c <= e-> fim; c++)
 		printf("%c", *c);
-	printf("\nInício: %c\nCursor-1: %c\nPróximo: %c\nFinal: %c\n", *e->inicio, *(e->cursor-1), *e->proximo, *e->fim);
 }
 
 void InsereCaractere (editorTAD editor, char caractere) {
@@ -118,6 +102,7 @@ void CopiaTexto (editorTAD editor) {
 	char *k;
 	if (editor->marcador != (char *) -1) {
 		editor->copia = editor->aux;
+		/*Aqui deve-se atentar para o fato de que o cursor pode estar antes ou depois do marcador. Cada caso desses deve ser tratado separadamente*/
 		if (editor->marcador > editor->proximo) {
 			for(k = editor->marcador; k >= editor->proximo; k--)
 				*(editor->copia++) = *k;
@@ -126,7 +111,6 @@ void CopiaTexto (editorTAD editor) {
 			for(k = editor->proximo; k >= editor->marcador; k--)
 				*(editor->copia++) = *k;
 		}
-		editor->marcador = (char *) -1;
 	}
 }
 
@@ -134,6 +118,7 @@ void InsereTexto (editorTAD editor) {
 	if (editor->copia > editor->aux)
 		while (editor->copia > editor->aux)
 			InsereCaractere (editor, *(--editor->copia));
+	editor->marcador = (char *) -1;
 }
 
 void SalvaTexto (editorTAD editor, char *nome) {

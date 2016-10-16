@@ -34,7 +34,7 @@ int main (void)
     case 'v': InsereTexto (editor);             break;
     case 's': SalvaTexto (editor, nome);        return 1;
     case EOF: case 3: case 4: return 1;
-    case '\n': case '\r': printf (":"); break;
+    case '\n': case '\r': printf("%ld %ld \n", (long)(&editor)->inicio->next, (long)(&editor)->copia_comeco);printf (":"); break;
     }        
   return 0;
 }
