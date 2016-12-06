@@ -131,5 +131,34 @@ void SalvaTexto (editorTAD editor, char *nome) {
 	fclose(arquivo);
 }
 
+arvoreTAD ArvoreBinaria (void){
+	return NULL;
+}
+void CarregaDicionario (arvoreTAD a, char *nome){}
+void RecortaTexto (editorTAD editor) {
+	char *k; int i, ds;
+	if (editor->marcador != (char *) -1) {
+		editor->copia = editor->aux;
+		/*Aqui deve-se atentar para o fato de que o cursor pode estar antes ou depois do marcador. Cada caso desses deve ser tratado separadamente*/
+		if (editor->marcador > editor->proximo) {
+			ds = (editor->marcador - editor->proximo) + 1;
+			for(k = editor->marcador; k >= editor->proximo; k--)
+				*(editor->copia++) = *k;
+			for(i = 0; i < ds; i++)
+				RemoveCaractereAtual(editor);
+		}
+		else if (editor->marcador < editor->proximo) {
+			ds = (editor->marcador - editor->proximo);
+			for(k = editor->proximo; k >= editor->marcador; k--)
+				*(editor->copia++) = *k;
+			for(i = 0; i < ds; i++)
+				RemoveCaractereAnterior(editor);
+			RemoveCaractereAtual(editor);
+		}
+	}
+}void Busca (editorTAD e, char *str){}
+void Substitui (editorTAD e, char *str1, char *str2){}
+void Ortografia (editorTAD e, arvoreTAD a, char *palavra){}
+
 
 
